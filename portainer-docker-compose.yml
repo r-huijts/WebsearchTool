@@ -1,0 +1,27 @@
+# 🐒 MCP Tavily WebSearch - Portainer Stack
+# Use this exact configuration in your Portainer Stack
+
+services:
+  mcp-tavily:
+    image: mcp-tavily:latest
+    container_name: mcp-tavily-search
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+    networks: 
+      - mcp-network
+    ports:
+      - "${EXTERNAL_PORT:-18000}:7000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/mcp/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  mcp-network:
+    driver: bridge

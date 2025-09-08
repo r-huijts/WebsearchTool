@@ -86,5 +86,10 @@ async def web_search(
             else:
                 raise RuntimeError(f"Tavily request failed: {e}") from e
 
-# Serve MCP via Streamable HTTP; default mount path is /mcp
-app = Starlette(routes=[Mount("/", app=mcp.streamable_http_app())])
+# Create the Starlette app for both direct and uvicorn usage
+app = Starlette(routes=[Mount("/mcp", app=mcp.streamable_http_app())])
+
+# When run directly as a module, start the server
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7000)

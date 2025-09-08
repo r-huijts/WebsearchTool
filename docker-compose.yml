@@ -1,13 +1,13 @@
-version: "3.9"
-
 services:
   mcp-tavily:
     build: .
     container_name: mcp-tavily
     restart: unless-stopped
     environment:
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
-    networks: [owui-mcp]
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+    networks: [mcp-network]
+    expose:
+      - "7000"
 
   mcpo:
     image: ghcr.io/open-webui/mcpo:main
@@ -19,17 +19,19 @@ services:
       - --port
       - "8000"
       - --api-key
-      - supersecret
+      - ${MCPO_API_KEY:-supersecret}
       - --server-type
       - streamable-http
       - --
       - http://mcp-tavily:7000/mcp
     ports:
-      - "18000:8000"      # Open WebUI will hit http://<host>:18000
+      - "18000:8000"
     depends_on:
       - mcp-tavily
-    networks: [owui-mcp]
+    networks: [mcp-network]
+    environment:
+      - MCPO_API_KEY=${MCPO_API_KEY:-supersecret}
 
 networks:
-  owui-mcp:
+  mcp-network:
     driver: bridge
