@@ -2,9 +2,6 @@ from typing import List, Optional
 import asyncio
 import httpx
 from pydantic import BaseModel
-from starlette.applications import Starlette
-from starlette.routing import Mount
-
 from mcp.server.fastmcp import FastMCP
 
 # MCP server (official SDK)
@@ -86,10 +83,11 @@ async def web_search(
             else:
                 raise RuntimeError(f"Tavily request failed: {e}") from e
 
-# Create the Starlette app for both direct and uvicorn usage
-app = Starlette(routes=[Mount("/mcp", app=mcp.streamable_http_app())])
+# Configure the server settings
+import os
+mcp.settings.host = os.getenv("MCP_HOST", "0.0.0.0")
+mcp.settings.port = int(os.getenv("MCP_PORT", "7000"))
 
-# When run directly as a module, start the server
+# Run the FastMCP server directly using streamable HTTP transport  
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7000)
+    mcp.run(transport="streamable-http")
