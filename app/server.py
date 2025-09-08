@@ -83,11 +83,13 @@ async def web_search(
             else:
                 raise RuntimeError(f"Tavily request failed: {e}") from e
 
-# Configure the server settings
-import os
-mcp.settings.host = os.getenv("MCP_HOST", "0.0.0.0")
-mcp.settings.port = int(os.getenv("MCP_PORT", "7000"))
-
-# Run the FastMCP server directly using streamable HTTP transport  
+# Run the FastMCP server using the built-in run method
 if __name__ == "__main__":
+    import os
+    
+    # Set host and port via settings 
+    mcp.settings.host = os.getenv("MCP_HOST", "0.0.0.0")
+    mcp.settings.port = int(os.getenv("MCP_PORT", "7000"))
+    
+    # Use the native run method with streamable HTTP
     mcp.run(transport="streamable-http")
