@@ -2,64 +2,62 @@ version: "3.8"
 
 services:
   mcp-tavily:
-    build: .
+    build:
+      context: .
     image: mcp-tavily:latest
-    container_name: mcp-tavily
     environment:
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - MCP_HOST=0.0.0.0
-      - MCP_PORT=8000
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
     restart: unless-stopped
-    networks: [mcpnet]
+    networks:
+      - mcpnet
 
   mcpo:
     image: ghcr.io/open-webui/mcpo:latest
-    container_name: mcpo
-    depends_on: [mcp-tavily]
-    # Connect mcpo to our MCP (streamable-http)
+    depends_on:
+      - mcp-tavily
     command: >
       mcpo --host 0.0.0.0 --port 8001
-           --server-type "streamablehttp" --
+           --server-type streamablehttp --
            http://mcp-tavily:8000/mcp
     restart: unless-stopped
-    networks: [mcpnet]
+    networks:
+      - mcpnet
 
   nginx-auth:
-  image: nginx:alpine
-  container_name: nginx-auth
-  depends_on: [mcpo]
-  environment:
-    - AUTH_TOKEN=${AUTH_TOKEN}
-  ports:
-    - "18000:18000"
-  command: >
-    /bin/sh -c '
-      set -eu
-      cat > /tmp/default.conf.template << "EOF"
-      server {
-          listen 0.0.0.0:18000;
-
-          resolver 127.0.0.11 ipv6=off valid=10s;
-
-          location / {
-              if ($http_authorization != "Bearer ${AUTH_TOKEN}") { return 401; }
-              proxy_pass http://mcpo:8001;
-              proxy_http_version 1.1;
-              proxy_set_header Connection "";
-              proxy_set_header Host $host;
-              proxy_set_header X-Real-IP $remote_addr;
-          }
-      }
-      EOF
-            mkdir -p /etc/nginx/conf.d
-            # IMPORTANT: pass the *literal* $AUTH_TOKEN so only that is substituted
-            envsubst '\''$$AUTH_TOKEN'\'' < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf
-            # Optional: show first lines for sanity
-            head -n 20 /etc/nginx/conf.d/default.conf || true
-            exec nginx -g "daemon off;"
-          '
-      networks: [mcpnet]
-      restart: unless-stopped
+    image: nginx:alpine
+    depends_on:
+      - mcpo
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}   # set in Portainer env vars (don't commit)
+    ports:
+      - "18000:18000"
+    command: |
+      /bin/sh -c '
+        set -eu
+        cat > /tmp/default.conf.template << "EOF"
+        server {
+            listen 0.0.0.0:18000;
+            resolver 127.0.0.11 ipv6=off valid=10s;
+            location / {
+                if ($$http_authorization != "Bearer ${AUTH_TOKEN}") { return 401; }
+                proxy_pass http://mcpo:8001;
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+                proxy_set_header Host $$host;
+                proxy_set_header X-Real-IP $$remote_addr;
+            }
+        }
+        EOF
+        mkdir -p /etc/nginx/conf.d
+        # IMPORTANT: double-$ to keep nginx vars; only $AUTH_TOKEN is substituted
+        envsubst "$$AUTH_TOKEN" < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf
+        exec nginx -g "daemon off;"
+      '
+    restart: unless-stopped
+    networks:
+      - mcpnet
 
 networks:
   mcpnet:
