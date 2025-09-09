@@ -163,7 +163,7 @@ def tavily_extract(
         }
     
     try:
-        return tavily_client.extract(
+        result = tavily_client.extract(
             urls=valid_urls,
             include_images=include_images,
             extract_depth=extract_depth,
@@ -171,11 +171,21 @@ def tavily_extract(
             timeout=timeout or 60,
             include_favicon=include_favicon,
         )
+        
+        # Check if extraction was successful
+        if result.get("results") or result.get("failed_results"):
+            if result.get("failed_results"):
+                result["extraction_note"] = "Some URLs failed to extract. This is common with news sites that block crawlers or have paywalls."
+            return result
+        else:
+            return result
+            
     except Exception as e:
         return {
             "error": f"Tavily extract error: {str(e)}",
             "error_type": type(e).__name__,
-            "valid_urls": valid_urls
+            "valid_urls": valid_urls,
+            "suggestion": "Try using tavily_search with include_raw_content=True for better content access"
         }
 
 @mcp.tool()
