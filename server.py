@@ -139,8 +139,8 @@ def tavily_map(
         instructions=instructions,
     )
 
-# Build Streamable HTTP ASGI app at root path "/" so MCPO can connect directly
-app = mcp.streamable_http_app(path="/")
+# Build Streamable HTTP ASGI app
+app = mcp.streamable_http_app()
 
 if __name__ == "__main__":
     import uvicorn
