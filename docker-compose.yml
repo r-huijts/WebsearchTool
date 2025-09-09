@@ -26,7 +26,6 @@ services:
     networks: [mcpnet]
     # internal only
 
-  services:
   nginx-auth:
     image: nginx:alpine
     container_name: nginx-auth
