@@ -20,7 +20,7 @@ MCP_HOST = os.getenv("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
 
 # --- MCP Server ---
-mcp = FastMCP("Tavily MCP (Streamable HTTP)")
+mcp = FastMCP("Tavily MCP (Streamable HTTP)", stateless_http=True)
 
 # We construct the Tavily client once and keep it in the MCP lifespan context.
 # Tools can fetch it via ctx.request_context.lifespan_context.
@@ -141,8 +141,9 @@ def tavily_map(
 
 # Build Streamable HTTP ASGI app at path "/mcp" (default).
 # Mounting it under "/" means the endpoint becomes "/mcp".
-app = Starlette(routes=[Mount("/", app=mcp.streamable_http_app())])
+app = mcp.streamable_http_app()
 
 if __name__ == "__main__":
+    import uvicorn
     # Start the ASGI app via Uvicorn.
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
