@@ -134,15 +134,49 @@ def tavily_extract(
     timeout: Optional[float] = None,
     include_favicon: bool = False,
 ) -> dict:
-    """Wraps Tavily Extract."""
-    return tavily_client.extract(
-        urls=urls,
-        include_images=include_images,
-        extract_depth=extract_depth,
-        format=format,
-        timeout=timeout,
-        include_favicon=include_favicon,
-    )
+    """
+    Extract content from specific URLs using Tavily.
+    
+    IMPORTANT: This tool requires actual URLs (starting with http:// or https://).
+    Do NOT pass text summaries or search results as URLs.
+    
+    Use tavily_search first to get URLs, then use this tool to extract content from those URLs.
+    """
+    
+    # Validate that urls parameter contains actual URLs
+    if isinstance(urls, str):
+        url_list = [urls]
+    else:
+        url_list = urls
+    
+    # Check if any of the URLs are actually URLs
+    valid_urls = []
+    for url in url_list:
+        if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
+            valid_urls.append(url)
+    
+    if not valid_urls:
+        return {
+            "error": "No valid URLs provided. tavily_extract requires actual URLs (starting with http:// or https://)",
+            "provided_input": urls,
+            "help": "Use tavily_search first to get URLs, then extract content from those URLs"
+        }
+    
+    try:
+        return tavily_client.extract(
+            urls=valid_urls,
+            include_images=include_images,
+            extract_depth=extract_depth,
+            format=format,
+            timeout=timeout or 60,
+            include_favicon=include_favicon,
+        )
+    except Exception as e:
+        return {
+            "error": f"Tavily extract error: {str(e)}",
+            "error_type": type(e).__name__,
+            "valid_urls": valid_urls
+        }
 
 @mcp.tool()
 def tavily_crawl(
