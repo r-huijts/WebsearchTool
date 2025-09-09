@@ -31,17 +31,26 @@ services:
     container_name: nginx-auth
     depends_on: [mcpo]
     environment:
-      - AUTH_TOKEN=${AUTH_TOKEN}     # set via Portainer or .env (not committed)
+      - AUTH_TOKEN=${AUTH_TOKEN}   # set in Portainer or .env (not committed)
     volumes:
-      - ./nginx/default.conf.template:/tmp/default.conf.template:ro
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     ports:
       - "18000:18000"
     command: >
-      /bin/sh -c "
-        mkdir -p /etc/nginx/conf.d &&
-        envsubst '\$$AUTH_TOKEN' < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf &&
-        exec nginx -g 'daemon off;'
-      "
+      /bin/sh -c '
+        set -e
+        echo "[nginx-auth] Verifying template path..."
+        ls -l /etc/nginx/templates || true
+        if [ ! -f /etc/nginx/templates/default.conf.template ]; then
+          echo "[nginx-auth] ERROR: Template file missing or not a regular file."
+          exit 1
+        fi
+        echo "[nginx-auth] Rendering config with envsubst..."
+        envsubst "$$AUTH_TOKEN" < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+        echo "[nginx-auth] Final config:"
+        head -n 20 /etc/nginx/conf.d/default.conf || true
+        exec nginx -g "daemon off;"
+      '
     networks: [mcpnet]
 
 networks:
