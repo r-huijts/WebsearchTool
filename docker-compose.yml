@@ -1,58 +1,34 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mcp-tavily:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: mcp-tavily-search
-    restart: unless-stopped
+    build: .
+    image: mcp-tavily:latest
+    container_name: mcp-tavily
     environment:
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - MCP_HOST=0.0.0.0
-      - MCP_PORT=7000
-    networks: 
-      - mcp-network
-    expose:
-      - "7000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.post('http://localhost:7000/', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  mcpo:
-    image: ghcr.io/open-webui/mcpo:main
-    container_name: mcp-tavily-proxy
-    restart: unless-stopped
-    command:
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-      - --api-key
-      - ${MCPO_API_KEY:-tavily-search-api-key-2024}
-      - --server-type
-      - streamable-http
-      - --
-      - http://mcp-tavily-search:7000
+      - MCP_PORT=8000
     ports:
-      - "${EXTERNAL_PORT:-18000}:8000"
-    depends_on:
-      mcp-tavily:
-        condition: service_healthy
-    networks: 
-      - mcp-network
-    environment:
-      - MCPO_API_KEY=${MCPO_API_KEY:-tavily-search-api-key-2024}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/docs || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      - "18000:8000"
+    restart: unless-stopped
+    networks: [mcpnet]
+
+  # Recommended bridge to OpenWebUI: MCP -> OpenAPI via mcpo
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:latest
+    container_name: mcpo
+    depends_on: [mcp-tavily]
+    # Expose mcpo on 18001 and tell it our MCP server is streamable-http at http://mcp-tavily:8000/mcp
+    command: >
+      mcpo --host 0.0.0.0 --port 8001
+           --server-type "streamablehttp" --
+           http://mcp-tavily:8000/mcp
+    ports:
+      - "18001:8001"
+    restart: unless-stopped
+    networks: [mcpnet]
 
 networks:
-  mcp-network:
+  mcpnet:
     driver: bridge

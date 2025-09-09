@@ -1,0 +1,149 @@
+# server.py
+import os
+from typing import List, Optional, Union, Literal
+
+from starlette.applications import Starlette
+from starlette.routing import Mount
+
+from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.session import ServerSession
+
+from tavily import TavilyClient
+
+# --- Configuration via environment variables ---
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+if not TAVILY_API_KEY:
+    raise RuntimeError("TAVILY_API_KEY env var is required")
+
+# Host/port for the ASGI server (inside the container use 0.0.0.0:8000)
+MCP_HOST = os.getenv("MCP_HOST", "0.0.0.0")
+MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
+
+# --- MCP Server ---
+mcp = FastMCP("Tavily MCP (Streamable HTTP)")
+
+# We construct the Tavily client once and keep it in the MCP lifespan context.
+# Tools can fetch it via ctx.request_context.lifespan_context.
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
+
+@mcp.tool()
+def tavily_search(
+    query: str,
+    search_depth: Literal["basic", "advanced"] = "basic",
+    topic: Literal["general", "news", "finance"] = "general",
+    days: Optional[int] = None,
+    time_range: Optional[Literal["day","week","month","year","d","w","m","y"]] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    max_results: int = 5,
+    chunks_per_source: Optional[int] = None,
+    include_images: bool = False,
+    include_image_descriptions: bool = False,
+    include_answer: Union[bool, Literal["basic","advanced"]] = False,
+    include_raw_content: Union[bool, Literal["markdown","text"]] = False,
+    include_domains: Optional[List[str]] = None,
+    exclude_domains: Optional[List[str]] = None,
+    country: Optional[str] = None,
+    timeout: Optional[int] = None,
+    include_favicon: bool = False,
+) -> dict:
+    """
+    Wraps Tavily Search.
+    See Tavily's docs for semantics of each parameter.
+    """
+    return tavily_client.search(
+        query=query,
+        search_depth=search_depth,
+        topic=topic,
+        days=days,
+        time_range=time_range,
+        start_date=start_date,
+        end_date=end_date,
+        max_results=max_results,
+        chunks_per_source=chunks_per_source,
+        include_images=include_images,
+        include_image_descriptions=include_image_descriptions,
+        include_answer=include_answer,
+        include_raw_content=include_raw_content,
+        include_domains=include_domains or [],
+        exclude_domains=exclude_domains or [],
+        country=country,
+        timeout=timeout or 60,
+        include_favicon=include_favicon,
+    )
+
+@mcp.tool()
+def tavily_extract(
+    urls: Union[str, List[str]],
+    include_images: bool = False,
+    extract_depth: Literal["basic","advanced"] = "basic",
+    format: Literal["markdown","text"] = "markdown",
+    timeout: Optional[float] = None,
+    include_favicon: bool = False,
+) -> dict:
+    """Wraps Tavily Extract."""
+    return tavily_client.extract(
+        urls=urls,
+        include_images=include_images,
+        extract_depth=extract_depth,
+        format=format,
+        timeout=timeout,
+        include_favicon=include_favicon,
+    )
+
+@mcp.tool()
+def tavily_crawl(
+    url: str,
+    max_depth: int = 1,
+    max_breadth: int = 20,
+    limit: int = 50,
+    instructions: Optional[str] = None,
+    select_paths: Optional[List[str]] = None,
+    select_domains: Optional[List[str]] = None,
+    exclude_paths: Optional[List[str]] = None,
+    exclude_domains: Optional[List[str]] = None,
+    allow_external: bool = True,
+    include_images: bool = False,
+    categories: Optional[List[str]] = None,
+    extract_depth: Literal["basic","advanced"] = "basic",
+) -> dict:
+    """Wraps Tavily Crawl (beta)."""
+    return tavily_client.crawl(
+        url=url,
+        max_depth=max_depth,
+        max_breadth=max_breadth,
+        limit=limit,
+        instructions=instructions,
+        select_paths=select_paths,
+        select_domains=select_domains,
+        exclude_paths=exclude_paths,
+        exclude_domains=exclude_domains,
+        allow_external=allow_external,
+        include_images=include_images,
+        categories=categories,
+        extract_depth=extract_depth,
+    )
+
+@mcp.tool()
+def tavily_map(
+    url: str,
+    max_depth: int = 2,
+    limit: int = 30,
+    instructions: Optional[str] = None,
+) -> dict:
+    """Wraps Tavily Map (beta)."""
+    return tavily_client.map(
+        url=url,
+        max_depth=max_depth,
+        limit=limit,
+        instructions=instructions,
+    )
+
+# Build Streamable HTTP ASGI app at path "/mcp" (default).
+# Mounting it under "/" means the endpoint becomes "/mcp".
+app = Starlette(routes=[Mount("/", app=mcp.streamable_http_app())])
+
+if __name__ == "__main__":
+    # Start the ASGI app via Uvicorn.
+    import uvicorn
+    uvicorn.run(app, host=MCP_HOST, port=MCP_PORT)
