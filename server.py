@@ -137,6 +137,7 @@ def detailed_news_search(
     days: int = 7,
     max_results: int = 10,
     country: Optional[str] = None,
+    include_international_sources: bool = True,
 ) -> dict:
     """
     Specialized tool for getting detailed, comprehensive news coverage.
@@ -148,7 +149,14 @@ def detailed_news_search(
     - Multiple sources for complete coverage
     
     Perfect for when you want detailed analysis rather than just headlines.
+    
+    TIP: For country-specific news, try both with and without country filter.
+    International sources often have better coverage of specific countries.
     """
+    # If looking for specific country news, try without country filter first
+    # as international sources often have better coverage
+    search_country = None if include_international_sources else country
+    
     return tavily_search(
         query=query,
         search_depth="advanced",
@@ -157,7 +165,7 @@ def detailed_news_search(
         max_results=max_results,
         include_answer="advanced",
         include_raw_content="markdown",
-        country=country,
+        country=search_country,
         timeout=120  # Longer timeout for advanced searches
     )
 
