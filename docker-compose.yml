@@ -35,6 +35,13 @@ services:
       - "18000:18000"
     volumes:
       - ./nginx.conf:/etc/nginx/templates/default.conf.template
+    command: |
+      /bin/sh -c '
+        # Remove the default nginx config that conflicts
+        rm -f /etc/nginx/conf.d/default.conf
+        # Let nginx process our template
+        /docker-entrypoint.sh nginx -g "daemon off;"
+      '
     restart: unless-stopped
     networks:
       - mcpnet
