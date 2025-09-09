@@ -9,8 +9,6 @@ services:
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8000
-    ports:
-      - "18000:8000"
     restart: unless-stopped
     networks: [mcpnet]
 
@@ -25,7 +23,7 @@ services:
            --server-type "streamablehttp" --
            http://mcp-tavily:8000/mcp
     ports:
-      - "18001:8001"
+      - "18000:8001"
     restart: unless-stopped
     networks: [mcpnet]
 
