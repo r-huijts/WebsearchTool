@@ -57,26 +57,45 @@ def tavily_search(
         end_date = None
         days = 1
     
-    return tavily_client.search(
-        query=query,
-        search_depth=search_depth,
-        topic=topic,
-        days=days,
-        time_range=time_range,
-        start_date=start_date,
-        end_date=end_date,
-        max_results=max_results,
-        chunks_per_source=chunks_per_source,
-        include_images=include_images,
-        include_image_descriptions=include_image_descriptions,
-        include_answer=include_answer,
-        include_raw_content=include_raw_content,
-        include_domains=include_domains or [],
-        exclude_domains=exclude_domains or [],
-        country=country,
-        timeout=timeout or 60,
-        include_favicon=include_favicon,
-    )
+    try:
+        # Build the search parameters, excluding None values
+        search_params = {
+            "query": query,
+            "search_depth": search_depth,
+            "topic": topic,
+            "max_results": max_results,
+            "include_images": include_images,
+            "include_image_descriptions": include_image_descriptions,
+            "include_answer": include_answer,
+            "include_raw_content": include_raw_content,
+            "include_domains": include_domains or [],
+            "exclude_domains": exclude_domains or [],
+            "timeout": timeout or 60,
+            "include_favicon": include_favicon,
+        }
+        
+        # Only add optional parameters if they have values
+        if days is not None:
+            search_params["days"] = days
+        if time_range is not None:
+            search_params["time_range"] = time_range
+        if start_date is not None:
+            search_params["start_date"] = start_date
+        if end_date is not None:
+            search_params["end_date"] = end_date
+        if chunks_per_source is not None:
+            search_params["chunks_per_source"] = chunks_per_source
+        if country is not None:
+            search_params["country"] = country
+            
+        return tavily_client.search(**search_params)
+    except Exception as e:
+        # Return detailed error information for debugging
+        return {
+            "error": f"Tavily API error: {str(e)}",
+            "error_type": type(e).__name__,
+            "search_params": search_params
+        }
 
 @mcp.tool()
 def tavily_extract(
