@@ -145,5 +145,4 @@ app = Starlette(routes=[Mount("/", app=mcp.streamable_http_app())])
 
 if __name__ == "__main__":
     # Start the ASGI app via Uvicorn.
-    import uvicorn
-    uvicorn.run(app, host=MCP_HOST, port=MCP_PORT)
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
