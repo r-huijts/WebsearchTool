@@ -32,14 +32,15 @@ services:
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN}
     volumes:
-      # Mount the single config file directly as a template.
-      - ./nginx.conf:/etc/nginx/templates/default.conf.template
+      # Mount the single config file to a neutral temp location to avoid fs conflicts.
+      - ./nginx.conf:/tmp/default.conf.template
     command: |
       /bin/sh -c '
-        # This is the most direct way: Process our template into the final config location.
-        export AUTH_TOKEN && envsubst ''$$AUTH_TOKEN'' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
+        # Explicitly process the template from /tmp into the final config location.
+        # This is the most direct and least error-prone method.
+        export AUTH_TOKEN && envsubst ''$$AUTH_TOKEN'' < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf &&
         
-        # Validate and start
+        # Validate the generated config and start Nginx.
         nginx -t && nginx -g "daemon off;"
       '
     ports:
