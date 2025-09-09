@@ -1,5 +1,6 @@
 # server.py
 import os
+from datetime import datetime, date
 from typing import List, Optional, Union, Literal
 
 from starlette.applications import Starlette
@@ -27,6 +28,25 @@ mcp = FastMCP("Tavily MCP (Streamable HTTP)", stateless_http=True)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
 @mcp.tool()
+def get_current_date() -> dict:
+    """
+    Get the current date and time information.
+    Useful for understanding what 'today', 'recent', 'current' means in context.
+    """
+    now = datetime.now()
+    today = date.today()
+    
+    return {
+        "current_date": today.isoformat(),
+        "current_datetime": now.isoformat(),
+        "day_of_week": today.strftime("%A"),
+        "formatted_date": today.strftime("%B %d, %Y"),
+        "year": today.year,
+        "month": today.month,
+        "day": today.day
+    }
+
+@mcp.tool()
 def tavily_search(
     query: str,
     search_depth: Literal["basic", "advanced"] = "basic",
@@ -48,9 +68,17 @@ def tavily_search(
     include_favicon: bool = False,
 ) -> dict:
     """
-    Wraps Tavily Search.
-    See Tavily's docs for semantics of each parameter.
-    """
+    Search the web using Tavily API.
+    
+    IMPORTANT DATE CONTEXT: Today's date is {today}
+    
+    For recent/current events:
+    - Use 'days' parameter (e.g., days=1 for today, days=7 for past week)
+    - Use 'time_range' parameter ("day", "week", "month", "year")
+    - For news, use topic="news" 
+    
+    Date format for start_date/end_date: YYYY-MM-DD
+    """.format(today=date.today().isoformat())
     # Handle date parameters - if start_date and end_date are the same, use days=1 instead
     if start_date and end_date and start_date == end_date:
         start_date = None
