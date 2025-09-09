@@ -27,6 +27,192 @@ mcp = FastMCP("Tavily MCP (Streamable HTTP)", stateless_http=True)
 # Tools can fetch it via ctx.request_context.lifespan_context.
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
+# --- Parameter Validation & Error Handling ---
+class TavilyValidationError(Exception):
+    """Custom exception for parameter validation errors"""
+    pass
+
+def validate_search_params(
+    search_depth: str, 
+    chunks_per_source: Optional[int], 
+    max_results: int,
+    topic: str,
+    country: Optional[str]
+) -> None:
+    """
+    Validate search parameters and raise descriptive errors.
+    """
+    # Validate max_results range
+    if max_results < 0 or max_results > 20:
+        raise TavilyValidationError(
+            f"max_results must be between 0 and 20, got {max_results}. "
+            "Use 5-10 for most searches, 15-20 for comprehensive research."
+        )
+    
+    # Validate chunks_per_source constraints
+    if chunks_per_source is not None:
+        if search_depth != "advanced":
+            raise TavilyValidationError(
+                f"chunks_per_source only available with search_depth='advanced', got search_depth='{search_depth}'. "
+                "Either set search_depth='advanced' or remove chunks_per_source parameter."
+            )
+        if chunks_per_source < 1 or chunks_per_source > 3:
+            raise TavilyValidationError(
+                f"chunks_per_source must be between 1 and 3, got {chunks_per_source}. "
+                "Use 1 for brief snippets, 3 for detailed content extraction."
+            )
+    
+    # Validate topic and country combination
+    if country is not None and topic != "general":
+        raise TavilyValidationError(
+            f"country parameter only available with topic='general', got topic='{topic}'. "
+            "Use topic='general' for country-specific searches, or remove country parameter."
+        )
+
+def calculate_optimal_timeout(
+    search_depth: str, 
+    include_raw_content: Union[bool, str], 
+    max_results: int,
+    auto_parameters: bool
+) -> int:
+    """
+    Calculate optimal timeout based on search complexity.
+    """
+    base_timeout = 60
+    
+    # Advanced search takes longer
+    if search_depth == "advanced":
+        base_timeout += 30
+    
+    # Auto parameters may trigger advanced search
+    if auto_parameters:
+        base_timeout += 20
+    
+    # Raw content extraction adds time
+    if include_raw_content:
+        base_timeout += 20
+    
+    # More results = more processing time
+    if max_results > 10:
+        base_timeout += 15
+    elif max_results > 15:
+        base_timeout += 25
+    
+    # Cap at 3 minutes for reasonable response times
+    return min(base_timeout, 180)
+
+def create_fallback_search_params(original_params: dict) -> dict:
+    """
+    Create fallback parameters for when advanced search fails.
+    """
+    fallback_params = original_params.copy()
+    
+    # Fallback to basic search
+    fallback_params["search_depth"] = "basic"
+    fallback_params["auto_parameters"] = False
+    
+    # Reduce result count to speed up search
+    fallback_params["max_results"] = min(fallback_params.get("max_results", 5), 5)
+    
+    # Remove advanced-only parameters
+    if "chunks_per_source" in fallback_params:
+        del fallback_params["chunks_per_source"]
+    
+    # Reduce content complexity
+    if fallback_params.get("include_raw_content"):
+        fallback_params["include_raw_content"] = False
+    
+    if fallback_params.get("include_answer") == "advanced":
+        fallback_params["include_answer"] = "basic"
+    
+    return fallback_params
+
+def robust_tavily_search_with_fallback(search_params: dict, max_retries: int = 2) -> dict:
+    """
+    Execute Tavily search with smart fallback strategies and retry logic.
+    """
+    import time
+    
+    # Calculate optimal timeout
+    optimal_timeout = calculate_optimal_timeout(
+        search_params.get("search_depth", "basic"),
+        search_params.get("include_raw_content", False),
+        search_params.get("max_results", 5),
+        search_params.get("auto_parameters", False)
+    )
+    
+    # Use calculated timeout if none provided
+    if "timeout" not in search_params or search_params["timeout"] is None:
+        search_params["timeout"] = optimal_timeout
+    
+    last_error = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # First attempt: Use original parameters
+            if attempt == 0:
+                return tavily_client.search(**search_params)
+            
+            # Subsequent attempts: Use fallback strategies
+            elif attempt == 1:
+                # Fallback 1: Reduce complexity but keep core functionality
+                fallback_params = create_fallback_search_params(search_params)
+                result = tavily_client.search(**fallback_params)
+                result["_fallback_used"] = "reduced_complexity"
+                result["_original_error"] = str(last_error)
+                return result
+            
+            else:
+                # Fallback 2: Minimal search for basic results
+                minimal_params = {
+                    "query": search_params["query"],
+                    "search_depth": "basic",
+                    "max_results": 3,
+                    "timeout": 30
+                }
+                result = tavily_client.search(**minimal_params)
+                result["_fallback_used"] = "minimal_search"
+                result["_original_error"] = str(last_error)
+                return result
+                
+        except Exception as e:
+            last_error = e
+            
+            # Check if it's a credit/quota error
+            error_str = str(e).lower()
+            if any(keyword in error_str for keyword in ["credit", "quota", "limit", "billing"]):
+                return {
+                    "error": f"API quota/credit limit reached: {str(e)}",
+                    "error_type": "QuotaExceeded",
+                    "suggestion": "Check your Tavily API usage limits and billing status. Try using search_depth='basic' to reduce credit consumption.",
+                    "fallback_action": "Use qna_search for simple questions to save credits"
+                }
+            
+            # Check if it's a timeout error
+            if any(keyword in error_str for keyword in ["timeout", "time out", "took too long"]):
+                # For timeout, wait briefly before retry
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            
+            # For other errors, retry immediately
+            if attempt < max_retries:
+                time.sleep(1)  # Brief pause between retries
+                continue
+    
+    # If all retries failed, return structured error
+    return {
+        "error": f"All search attempts failed: {str(last_error)}",
+        "error_type": type(last_error).__name__,
+        "attempts": max_retries + 1,
+        "suggestion": "Try simplifying your query or using qna_search for basic questions",
+        "troubleshooting": {
+            "check_api_key": "Verify TAVILY_API_KEY is valid",
+            "check_network": "Ensure internet connectivity to api.tavily.com",
+            "reduce_complexity": "Try search_depth='basic' and fewer max_results"
+        }
+    }
+
 @mcp.tool()
 def get_current_date() -> dict:
     """
@@ -101,51 +287,118 @@ def tavily_search(
     - include_image_descriptions=True for AI-generated image descriptions
     - include_favicon=True for site favicons
     """.format(today=date.today().isoformat())
+    # Validate parameters before processing
+    try:
+        validate_search_params(search_depth, chunks_per_source, max_results, topic, country)
+    except TavilyValidationError as e:
+        return {
+            "error": f"Parameter validation error: {str(e)}",
+            "error_type": "ValidationError",
+            "fix_suggestion": "Check the parameter requirements in the error message above"
+        }
+    
     # Handle date parameters - if start_date and end_date are the same, use days=1 instead
     if start_date and end_date and start_date == end_date:
         start_date = None
         end_date = None
         days = 1
     
+    # Build the search parameters, excluding None values
+    search_params = {
+        "query": query,
+        "search_depth": search_depth,
+        "topic": topic,
+        "auto_parameters": auto_parameters,
+        "max_results": max_results,
+        "include_images": include_images,
+        "include_image_descriptions": include_image_descriptions,
+        "include_answer": include_answer,
+        "include_raw_content": include_raw_content,
+        "include_domains": include_domains or [],
+        "exclude_domains": exclude_domains or [],
+        "timeout": timeout,  # Will be calculated automatically if None
+        "include_favicon": include_favicon,
+    }
+    
+    # Only add optional parameters if they have values
+    if days is not None:
+        search_params["days"] = days
+    if time_range is not None:
+        search_params["time_range"] = time_range
+    if start_date is not None:
+        search_params["start_date"] = start_date
+    if end_date is not None:
+        search_params["end_date"] = end_date
+    if chunks_per_source is not None:
+        search_params["chunks_per_source"] = chunks_per_source
+    if country is not None:
+        search_params["country"] = country
+    
+    # Use robust search with fallback strategies
+    return robust_tavily_search_with_fallback(search_params)
+
+@mcp.tool()
+def tavily_health_check() -> dict:
+    """
+    Check the health and status of the Tavily API connection.
+    
+    Performs a minimal search to verify:
+    - API key validity
+    - Network connectivity
+    - Service availability
+    - Response time
+    
+    Useful for troubleshooting connection issues.
+    """
+    import time
+    
     try:
-        # Build the search parameters, excluding None values
-        search_params = {
-            "query": query,
-            "search_depth": search_depth,
-            "topic": topic,
-            "auto_parameters": auto_parameters,
-            "max_results": max_results,
-            "include_images": include_images,
-            "include_image_descriptions": include_image_descriptions,
-            "include_answer": include_answer,
-            "include_raw_content": include_raw_content,
-            "include_domains": include_domains or [],
-            "exclude_domains": exclude_domains or [],
-            "timeout": timeout or 60,
-            "include_favicon": include_favicon,
+        start_time = time.time()
+        
+        # Perform minimal test search
+        test_result = tavily_client.search(
+            query="test",
+            max_results=1,
+            search_depth="basic",
+            timeout=10
+        )
+        
+        response_time = time.time() - start_time
+        
+        return {
+            "status": "healthy",
+            "api_accessible": True,
+            "response_time_seconds": round(response_time, 2),
+            "test_query_successful": True,
+            "results_count": len(test_result.get("results", [])),
+            "timestamp": date.today().isoformat()
         }
         
-        # Only add optional parameters if they have values
-        if days is not None:
-            search_params["days"] = days
-        if time_range is not None:
-            search_params["time_range"] = time_range
-        if start_date is not None:
-            search_params["start_date"] = start_date
-        if end_date is not None:
-            search_params["end_date"] = end_date
-        if chunks_per_source is not None:
-            search_params["chunks_per_source"] = chunks_per_source
-        if country is not None:
-            search_params["country"] = country
-            
-        return tavily_client.search(**search_params)
     except Exception as e:
-        # Return detailed error information for debugging
+        error_str = str(e).lower()
+        
+        # Diagnose specific error types
+        if "api" in error_str and ("key" in error_str or "auth" in error_str):
+            diagnosis = "Invalid or missing API key"
+            fix_suggestion = "Check TAVILY_API_KEY environment variable"
+        elif any(keyword in error_str for keyword in ["network", "connection", "timeout"]):
+            diagnosis = "Network connectivity issue"
+            fix_suggestion = "Check internet connection and firewall settings"
+        elif any(keyword in error_str for keyword in ["quota", "limit", "billing"]):
+            diagnosis = "API quota or billing issue"
+            fix_suggestion = "Check Tavily account usage and billing status"
+        else:
+            diagnosis = "Unknown API issue"
+            fix_suggestion = "Check Tavily service status"
+        
         return {
-            "error": f"Tavily API error: {str(e)}",
+            "status": "unhealthy",
+            "api_accessible": False,
+            "error": str(e),
             "error_type": type(e).__name__,
-            "search_params": search_params
+            "diagnosis": diagnosis,
+            "fix_suggestion": fix_suggestion,
+            "timestamp": date.today().isoformat()
         }
 
 @mcp.tool()
@@ -163,9 +416,23 @@ def qna_search(query: str) -> str:
     """
     try:
         answer = tavily_client.qna_search(query=query)
+        
+        # Validate that we got a meaningful response
+        if not answer or answer.strip() == "":
+            return "No answer found for this query. Try using tavily_search for more comprehensive results."
+        
         return answer
+        
     except Exception as e:
-        return f"QNA search error: {str(e)}. Try using regular tavily_search for this query."
+        error_str = str(e).lower()
+        
+        # Provide specific guidance based on error type
+        if any(keyword in error_str for keyword in ["quota", "credit", "limit"]):
+            return f"QNA search quota exceeded: {str(e)}. This uses fewer credits than regular search - check your Tavily account."
+        elif "timeout" in error_str:
+            return f"QNA search timed out: {str(e)}. Try a simpler question or use tavily_search instead."
+        else:
+            return f"QNA search error: {str(e)}. Try using tavily_search for this query, which may have better error handling."
 
 @mcp.tool()
 def get_search_context(
