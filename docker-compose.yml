@@ -58,8 +58,8 @@ services:
             head -n 20 /etc/nginx/conf.d/default.conf || true
             exec nginx -g "daemon off;"
           '
-        networks: [mcpnet]
-        restart: unless-stopped
+      networks: [mcpnet]
+      restart: unless-stopped
 
 networks:
   mcpnet:
