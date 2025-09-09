@@ -22,7 +22,7 @@ services:
            --server-type streamablehttp --
            http://mcp-tavily:8000/mcp
     ports:
-      - "8001:8001"
+      - "18000:8001"
     restart: unless-stopped
     networks:
       - mcpnet
