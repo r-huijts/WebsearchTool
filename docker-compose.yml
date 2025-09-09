@@ -37,8 +37,16 @@ services:
       /bin/sh -c '
         echo "Starting Nginx with authentication..."
         echo "Auth token configured: $${AUTH_TOKEN:0:8}***"
+        echo "Processing nginx template..."
         rm -f /etc/nginx/conf.d/default.conf
-        /docker-entrypoint.sh nginx -g "daemon off;"
+        export AUTH_TOKEN
+        envsubst '\''$$AUTH_TOKEN'\'' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+        echo "Generated config:"
+        cat /etc/nginx/conf.d/default.conf
+        echo "Testing nginx config..."
+        nginx -t
+        echo "Starting nginx..."
+        nginx -g "daemon off;"
       '
     ports:
       - "18000:18000"
