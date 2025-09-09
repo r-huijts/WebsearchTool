@@ -584,6 +584,50 @@ def detailed_news_search(
     )
 
 @mcp.tool()
+def visual_search(
+    query: str,
+    max_results: int = 10,
+    include_answer: Union[bool, Literal["basic","advanced"]] = "advanced",
+    search_depth: Literal["basic", "advanced"] = "advanced"
+) -> dict:
+    """
+    🖼️ BEST FOR VISUAL CONTENT: Search with focus on images, diagrams, and visual materials.
+    
+    ⚡ USE WHEN:
+    - User asks for images, diagrams, charts, graphics, photos
+    - Visual content is essential to the answer
+    - Query includes words like "diagram", "image", "photo", "chart", "illustration"
+    - Need visual examples or representations
+    
+    🎯 OPTIMIZED FOR:
+    - High-quality image results with descriptions
+    - Visual content prioritization
+    - AI-generated image descriptions
+    - Rich visual metadata (favicons, thumbnails)
+    - Enhanced image discovery and extraction
+    
+    ❌ DON'T USE FOR:
+    - Text-only information needs
+    - Simple facts without visual component
+    - When images are not relevant
+    
+    Returns: Results with prioritized visual content, image URLs, and descriptions
+    Credits: 2 (advanced search with visual optimization)
+    """
+    return tavily_search(
+        query=query,
+        search_depth=search_depth,
+        auto_parameters=True,           # Let AI optimize for visual content
+        max_results=max_results,
+        include_answer=include_answer,
+        include_images=True,            # 🖼️ Enable image search
+        include_image_descriptions=True, # 📝 AI descriptions of images
+        include_raw_content="markdown", # 📄 Full content for context
+        include_favicon=True,           # 🔗 Visual site indicators
+        timeout=120                     # ⏱️ Allow time for image processing
+    )
+
+@mcp.tool()
 def smart_search(
     query: str,
     max_results: int = 10,
@@ -619,10 +663,58 @@ def smart_search(
         max_results=max_results,
         include_answer=include_answer,
         include_raw_content=include_raw_content,
-        include_images=True,            # 🖼️ Include visual content
+        include_images=True,            # 🖼️ Include visual content by default
         include_image_descriptions=True, # 📝 AI descriptions of images
         include_favicon=True,           # 🔗 Better source identification
         timeout=120                     # ⏱️ Allow time for complex searches
+    )
+
+@mcp.tool()
+def diagram_search(
+    query: str,
+    max_results: int = 15,
+    topic: Literal["general", "scientific", "health", "finance", "travel"] = "general"
+) -> dict:
+    """
+    📊 SPECIALIZED FOR DIAGRAMS: Find diagrams, flowcharts, and visual explanations.
+    
+    ⚡ USE WHEN:
+    - User specifically asks for diagrams, flowcharts, charts, schematics
+    - Need visual explanations of concepts, processes, or systems
+    - Educational content that benefits from visual representation
+    - Technical documentation with diagrams
+    
+    🎯 OPTIMIZED FOR:
+    - Diagram-rich educational content
+    - Technical and scientific illustrations
+    - Process flows and system architectures
+    - Infographics and visual explanations
+    - Higher result count for better visual options
+    
+    💡 EXAMPLES:
+    - "diagram explaining neural networks"
+    - "flowchart of machine learning process"
+    - "architecture diagram of kubernetes"
+    - "visual explanation of photosynthesis"
+    
+    Returns: Results optimized for visual educational content
+    Credits: 2 (advanced search with visual focus)
+    """
+    # Enhance the query to specifically target diagrams
+    enhanced_query = f"{query} diagram flowchart illustration infographic visual explanation"
+    
+    return tavily_search(
+        query=enhanced_query,
+        search_depth="advanced",        # 🎯 Better quality for educational content
+        topic=topic,                    # 📚 Topic specialization
+        auto_parameters=True,           # 🤖 Let AI optimize
+        max_results=max_results,        # 📊 More results for visual variety
+        include_answer="advanced",      # 📝 Comprehensive explanations
+        include_images=True,            # 🖼️ Essential for diagrams
+        include_image_descriptions=True, # 📝 Describe the visual content
+        include_raw_content="markdown", # 📄 Full educational content
+        include_favicon=True,           # 🔗 Source identification
+        timeout=150                     # ⏱️ Extra time for visual processing
     )
 
 @mcp.tool()
