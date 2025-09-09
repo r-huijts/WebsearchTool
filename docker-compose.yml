@@ -37,21 +37,21 @@ services:
         set -eu
         # Write template inline (no bind-mounts)
         cat > /tmp/default.conf.template << "EOF"
-server {
-    listen 0.0.0.0:18000;
+        server {
+            listen 0.0.0.0:18000;
 
-    resolver 127.0.0.11 ipv6=off valid=10s;
+            resolver 127.0.0.11 ipv6=off valid=10s;
 
-    location / {
-        if ($http_authorization != "Bearer ${AUTH_TOKEN}") { return 401; }
-        proxy_pass http://mcpo:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-EOF
+            location / {
+                if ($http_authorization != "Bearer ${AUTH_TOKEN}") { return 401; }
+                proxy_pass http://mcpo:8001;
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+        }
+        EOF
         mkdir -p /etc/nginx/conf.d
         # Substitute only AUTH_TOKEN (leave the rest untouched)
         envsubst "$$AUTH_TOKEN" < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf
