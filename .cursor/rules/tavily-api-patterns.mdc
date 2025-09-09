@@ -1,0 +1,52 @@
+---
+globs: *.py
+---
+
+# Tavily API Implementation Patterns
+
+## Tool Function Structure
+All Tavily MCP tools should follow this pattern:
+
+```python
+@mcp.tool()
+def tool_name(
+    query: str,
+    # ... other parameters with proper typing
+) -> dict:
+    """
+    Clear description with current date context.
+    
+    IMPORTANT DATE CONTEXT: Today's date is {today}
+    
+    Usage guidelines and parameter explanations.
+    """.format(today=date.today().isoformat())
+    
+    try:
+        # Parameter validation and preprocessing
+        # API call with proper error handling
+        return result
+    except Exception as e:
+        return {
+            "error": f"Detailed error: {str(e)}",
+            "error_type": type(e).__name__,
+            "suggestion": "Helpful suggestion for fixing the issue"
+        }
+```
+
+## Required Error Handling
+- Always wrap Tavily API calls in try/catch
+- Return structured error responses with helpful suggestions
+- Include parameter validation for user-facing tools
+- Provide fallback strategies when possible
+
+## Parameter Guidelines
+- Use proper type hints with Literal types for enums
+- Include comprehensive docstrings with date context
+- Validate parameter combinations (e.g., chunks_per_source only with advanced search)
+- Provide sensible defaults based on Tavily documentation
+
+## Response Processing
+- Clean and structure API responses before returning
+- Add helpful metadata (like extraction_note for failed URLs)
+- Include debugging information in error responses
+- Format dates and times consistently

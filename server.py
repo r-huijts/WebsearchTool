@@ -50,7 +50,8 @@ def get_current_date() -> dict:
 def tavily_search(
     query: str,
     search_depth: Literal["basic", "advanced"] = "basic",
-    topic: Literal["general", "news", "finance"] = "general",
+    topic: Literal["general", "news", "finance", "health", "scientific", "travel"] = "general",
+    auto_parameters: bool = False,
     days: Optional[int] = None,
     time_range: Optional[Literal["day","week","month","year","d","w","m","y"]] = None,
     start_date: Optional[str] = None,
@@ -68,22 +69,37 @@ def tavily_search(
     include_favicon: bool = False,
 ) -> dict:
     """
-    Search the web using Tavily API.
+    Search the web using Tavily API with comprehensive parameter support.
     
     IMPORTANT DATE CONTEXT: Today's date is {today}
     
-    For DETAILED content and analysis:
-    - Use include_answer="advanced" for comprehensive summaries
-    - Use include_raw_content="markdown" for full article content
-    - Use search_depth="advanced" for deeper analysis
-    - Use max_results=10 for more sources
+    🤖 SMART FEATURES:
+    - Use auto_parameters=True for AI-optimized search parameters (BETA)
+    - Tavily's AI will automatically set optimal search_depth, topic, time_range
     
-    For recent/current events:
-    - Use 'days' parameter (e.g., days=1 for today, days=7 for past week)
-    - Use 'time_range' parameter ("day", "week", "month", "year")
-    - For news, use topic="news" 
+    📊 DETAILED CONTENT:
+    - include_answer="advanced" for comprehensive AI summaries
+    - include_raw_content="markdown" for full article content
+    - search_depth="advanced" for deeper analysis (costs 2 credits vs 1)
+    - max_results=10-20 for thorough research
     
-    Date format for start_date/end_date: YYYY-MM-DD
+    🎯 TOPIC SPECIALIZATION:
+    - "general": Default for most searches
+    - "news": Current events, recent developments
+    - "finance": Market data, economic news
+    - "health": Medical, wellness content
+    - "scientific": Research, academic content  
+    - "travel": Tourism, destination information
+    
+    ⏰ TIME FILTERING:
+    - days=N for recent content (works with news topic)
+    - time_range="week" for broader time windows
+    - start_date/end_date for specific date ranges (YYYY-MM-DD)
+    
+    🖼️ VISUAL CONTENT:
+    - include_images=True for related images
+    - include_image_descriptions=True for AI-generated image descriptions
+    - include_favicon=True for site favicons
     """.format(today=date.today().isoformat())
     # Handle date parameters - if start_date and end_date are the same, use days=1 instead
     if start_date and end_date and start_date == end_date:
@@ -97,6 +113,7 @@ def tavily_search(
             "query": query,
             "search_depth": search_depth,
             "topic": topic,
+            "auto_parameters": auto_parameters,
             "max_results": max_results,
             "include_images": include_images,
             "include_image_descriptions": include_image_descriptions,
@@ -132,6 +149,77 @@ def tavily_search(
         }
 
 @mcp.tool()
+def qna_search(query: str) -> str:
+    """
+    Get a direct, concise answer to a question without full search results.
+    
+    Perfect for:
+    - Quick facts and simple questions
+    - When you need just the answer, not sources
+    - Fast responses without detailed analysis
+    
+    Returns a string answer directly instead of full search results.
+    Uses less API credits and provides faster responses.
+    """
+    try:
+        answer = tavily_client.qna_search(query=query)
+        return answer
+    except Exception as e:
+        return f"QNA search error: {str(e)}. Try using regular tavily_search for this query."
+
+@mcp.tool()
+def get_search_context(
+    query: str, 
+    max_tokens: int = 4000,
+    search_depth: Literal["basic", "advanced"] = "basic"
+) -> str:
+    """
+    Generate context string optimized for RAG (Retrieval-Augmented Generation) applications.
+    
+    Returns clean, formatted text perfect for feeding into LLMs or AI applications.
+    Automatically optimizes content for:
+    - Context windows
+    - Token limits  
+    - Relevant information extraction
+    
+    This is ideal for building AI applications that need web context.
+    """
+    try:
+        # Note: max_tokens parameter might not be available in all Tavily versions
+        # Falls back to get_search_context without max_tokens if needed
+        try:
+            context = tavily_client.get_search_context(query=query, max_tokens=max_tokens)
+        except TypeError:
+            # Fallback for older Tavily versions without max_tokens
+            context = tavily_client.get_search_context(query=query)
+        
+        return context
+    except Exception as e:
+        # Fallback to regular search with context extraction
+        try:
+            search_result = tavily_client.search(
+                query=query,
+                search_depth=search_depth,
+                include_answer="advanced",
+                include_raw_content="text",
+                max_results=5
+            )
+            
+            # Extract and combine content for context
+            context_parts = []
+            if search_result.get("answer"):
+                context_parts.append(f"Summary: {search_result['answer']}")
+            
+            for result in search_result.get("results", []):
+                if result.get("content"):
+                    context_parts.append(f"Source ({result.get('title', 'Unknown')}): {result['content']}")
+            
+            return "\n\n".join(context_parts)
+            
+        except Exception as fallback_error:
+            return f"Context generation error: {str(e)}. Fallback error: {str(fallback_error)}"
+
+@mcp.tool()
 def detailed_news_search(
     query: str,
     days: int = 7,
@@ -161,12 +249,46 @@ def detailed_news_search(
         query=query,
         search_depth="advanced",
         topic="news", 
+        auto_parameters=True,  # Let Tavily's AI optimize parameters
         days=days,
         max_results=max_results,
         include_answer="advanced",
         include_raw_content="markdown",
+        include_image_descriptions=True,  # Enhanced visual content
+        include_favicon=True,             # Better source identification
         country=search_country,
         timeout=120  # Longer timeout for advanced searches
+    )
+
+@mcp.tool()
+def smart_search(
+    query: str,
+    max_results: int = 10,
+    include_answer: Union[bool, Literal["basic","advanced"]] = "advanced",
+    include_raw_content: Union[bool, Literal["markdown","text"]] = "markdown"
+) -> dict:
+    """
+    Intelligent search that automatically optimizes all parameters based on query intent.
+    
+    🤖 FEATURES:
+    - Uses Tavily's AI to automatically determine optimal search_depth, topic, time_range
+    - Smart parameter selection based on query content and context
+    - Enhanced content extraction with images and metadata
+    - Perfect for when you want the best results without manual parameter tuning
+    
+    ⚠️ NOTE: May use advanced search (2 credits) if Tavily's AI determines it will improve results.
+    Explicitly set search_depth="basic" in regular tavily_search to avoid extra cost.
+    """
+    return tavily_search(
+        query=query,
+        auto_parameters=True,           # 🎯 Let Tavily's AI optimize everything
+        max_results=max_results,
+        include_answer=include_answer,
+        include_raw_content=include_raw_content,
+        include_images=True,            # 🖼️ Include visual content
+        include_image_descriptions=True, # 📝 AI descriptions of images
+        include_favicon=True,           # 🔗 Better source identification
+        timeout=120                     # ⏱️ Allow time for complex searches
     )
 
 @mcp.tool()

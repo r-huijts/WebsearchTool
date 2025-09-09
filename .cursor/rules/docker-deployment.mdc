@@ -1,0 +1,38 @@
+---
+globs: docker-compose.yml,Dockerfile,*.conf
+---
+
+# Docker Deployment Guidelines
+
+## Container Architecture Principles
+- **mcp-tavily**: Main application container with minimal dependencies
+- **mcpo**: Proxy container for protocol conversion (MCP → REST)
+- **nginx-auth**: Optional authentication layer (currently disabled)
+
+## Port Mapping Strategy
+- External port 18000 maps to internal service ports
+- MCPO runs on internal port 8001, exposed as 18000
+- MCP server runs on internal port 8000 (not exposed externally)
+- Use port mapping format: `"external:internal"`
+
+## Environment Variable Management
+- Required: `TAVILY_API_KEY` for API access
+- Optional: `AUTH_TOKEN` for nginx authentication (when enabled)
+- Use `${VARIABLE}` syntax in docker-compose for environment substitution
+- Set environment variables in Portainer stack configuration
+
+## Network Configuration
+- All services use the `mcpnet` bridge network
+- Services communicate using container names as hostnames
+- DNS resolution handled automatically by Docker
+- No external network access required beyond Tavily API
+
+## Volume Mount Patterns
+- Configuration files: `./config.ext:/container/path/config.ext`
+- Avoid complex volume mounts for better portability
+- Use nginx templates for environment variable substitution when needed
+
+## Health and Reliability
+- Use `restart: unless-stopped` for production reliability
+- Implement proper dependency chains with `depends_on`
+- Keep containers stateless for easy scaling and updates

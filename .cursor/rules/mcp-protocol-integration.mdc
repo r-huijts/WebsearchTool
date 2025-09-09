@@ -1,0 +1,43 @@
+---
+globs: server.py
+---
+
+# MCP Protocol Integration Guidelines
+
+## FastMCP Server Setup
+```python
+# Initialize with proper configuration
+mcp = FastMCP("Tavily MCP (Streamable HTTP)", stateless_http=True)
+
+# Mount at root path for MCPO compatibility
+app = mcp.streamable_http_app()
+```
+
+## Tool Registration Patterns
+- Use `@mcp.tool()` decorator for all exposed functions
+- Provide comprehensive type hints for parameters
+- Include detailed docstrings with usage examples
+- Add date/time context for temporal queries
+
+## Streamable HTTP Configuration
+- Serve MCP protocol at root path `/` for MCPO compatibility
+- Use default FastMCP settings unless specific customization needed
+- Ensure proper ASGI app configuration for container deployment
+
+## Client Integration Considerations
+- Tools appear in OpenWebUI as REST endpoints through MCPO
+- Parameter validation happens at MCP level
+- Error responses must be JSON-serializable
+- Include helpful error messages for end users
+
+## Performance Optimization
+- Use stateless HTTP mode for better scalability
+- Implement proper timeout handling for long-running searches
+- Cache frequently accessed data when appropriate
+- Monitor API credit usage for cost optimization
+
+## Tool Naming Conventions
+- Use descriptive names: `tavily_search`, `detailed_news_search`
+- Avoid generic names that might conflict with other MCP servers
+- Include tool purpose in function name for clarity
+- Group related tools with consistent prefixes

@@ -1,0 +1,51 @@
+---
+description: Guidelines for optimizing Tavily search queries and improving result quality
+---
+
+# Search Query Optimization Guidelines
+
+## Query Construction Best Practices
+- Use specific, focused queries rather than broad terms
+- Include relevant keywords for the intended domain/topic
+- For news searches, include temporal context (recent, current, today)
+- Use location qualifiers when searching for regional content
+
+## Parameter Selection Strategy
+
+### Search Depth
+- **Basic**: Fast, generic results (1 API credit)
+- **Advanced**: Higher relevance, better content extraction (2 API credits)
+- Use advanced for important queries, basic for exploratory searches
+
+### Topic Selection
+- **general**: Default for most searches
+- **news**: For current events, recent developments  
+- **finance**: For market data, economic news
+- **health**: For medical, wellness content
+- **scientific**: For research, academic content
+- **travel**: For tourism, destination information
+
+### Content Enhancement
+- `include_answer="advanced"`: For comprehensive AI summaries
+- `include_raw_content="markdown"`: For full article content
+- `max_results=10-20`: For thorough research
+- `chunks_per_source=3`: For detailed content extraction (advanced only)
+
+## Common Anti-Patterns to Avoid
+- Setting both start_date and end_date to the same value
+- Using country filter for international news coverage
+- Requesting raw content without considering response size
+- Ignoring API credit costs for high-volume applications
+
+## Fallback Strategies
+1. Start with advanced search for important queries
+2. Fall back to basic search if credit constraints exist
+3. Retry with broader terms if no results found
+4. Use different time ranges for temporal searches
+5. Remove domain restrictions if results are limited
+
+## Result Quality Indicators
+- Check response.answer for AI-generated summaries
+- Monitor relevance scores in results
+- Validate published_date for news content
+- Review failed_results for extraction issues
