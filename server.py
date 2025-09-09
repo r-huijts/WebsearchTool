@@ -216,8 +216,24 @@ def robust_tavily_search_with_fallback(search_params: dict, max_retries: int = 2
 @mcp.tool()
 def get_current_date() -> dict:
     """
-    Get the current date and time information.
-    Useful for understanding what 'today', 'recent', 'current' means in context.
+    📅 ALWAYS USE FIRST for temporal queries: Get current date and time context.
+    
+    ⚡ USE WHEN:
+    - User mentions "today", "recent", "current", "this week", "latest"
+    - Any query involving time-sensitive information
+    - Need to understand what "recent" means in context
+    - Before using any search tools for time-based queries
+    
+    🎯 PROVIDES:
+    - Current date in multiple formats
+    - Day of week, month, year
+    - Essential context for temporal search parameters
+    
+    ⭐ BEST PRACTICE: Call this FIRST, then use result to inform other searches
+    Example: Get date, then use detailed_news_search with appropriate days parameter
+    
+    Returns: Date context object with multiple time formats
+    Credits: Free (no API call)
     """
     now = datetime.now()
     today = date.today()
@@ -255,37 +271,34 @@ def tavily_search(
     include_favicon: bool = False,
 ) -> dict:
     """
-    Search the web using Tavily API with comprehensive parameter support.
+    🔧 ADVANCED SEARCH: Full control search with manual parameter tuning.
     
     IMPORTANT DATE CONTEXT: Today's date is {today}
     
-    🤖 SMART FEATURES:
-    - Use auto_parameters=True for AI-optimized search parameters (BETA)
-    - Tavily's AI will automatically set optimal search_depth, topic, time_range
+    ⚡ USE WHEN:
+    - Need specific parameter control (search depth, topic, domains)
+    - Other tools don't meet specific requirements
+    - Want to manually optimize for credits or performance
+    - Need domain filtering or country restrictions
     
-    📊 DETAILED CONTENT:
-    - include_answer="advanced" for comprehensive AI summaries
-    - include_raw_content="markdown" for full article content
-    - search_depth="advanced" for deeper analysis (costs 2 credits vs 1)
-    - max_results=10-20 for thorough research
+    💡 BETTER ALTERNATIVES:
+    - For simple facts: Use qna_search (faster, cheaper)
+    - For research: Use smart_search (AI-optimized)
+    - For news: Use detailed_news_search (news-optimized)
+    - For AI context: Use get_search_context (clean text)
     
-    🎯 TOPIC SPECIALIZATION:
-    - "general": Default for most searches
-    - "news": Current events, recent developments
-    - "finance": Market data, economic news
-    - "health": Medical, wellness content
-    - "scientific": Research, academic content  
-    - "travel": Tourism, destination information
+    🎯 MANUAL OPTIMIZATION OPTIONS:
+    - auto_parameters=True: Let AI optimize (may cost 2 credits)
+    - search_depth="advanced": Better quality (2 credits vs 1)
+    - topic selection: general/news/finance/health/scientific/travel
+    - include_answer="advanced": AI summaries
+    - include_raw_content="markdown": Full article content
+    - Domain filtering: include_domains/exclude_domains
     
-    ⏰ TIME FILTERING:
-    - days=N for recent content (works with news topic)
-    - time_range="week" for broader time windows
-    - start_date/end_date for specific date ranges (YYYY-MM-DD)
+    ⚠️ COMPLEXITY: This tool has many parameters. Consider simpler alternatives first.
     
-    🖼️ VISUAL CONTENT:
-    - include_images=True for related images
-    - include_image_descriptions=True for AI-generated image descriptions
-    - include_favicon=True for site favicons
+    Returns: Full JSON response with maximum flexibility
+    Credits: 1-2 depending on parameters
     """.format(today=date.today().isoformat())
     # Validate parameters before processing
     try:
@@ -340,15 +353,27 @@ def tavily_search(
 @mcp.tool()
 def tavily_health_check() -> dict:
     """
-    Check the health and status of the Tavily API connection.
+    🏥 DIAGNOSTIC TOOL: Check search service health and troubleshoot issues.
     
-    Performs a minimal search to verify:
-    - API key validity
-    - Network connectivity
-    - Service availability
-    - Response time
+    ⚡ USE WHEN:
+    - Search tools are failing or returning errors
+    - Need to verify API connectivity before attempting searches
+    - Troubleshooting performance or quota issues
+    - User reports search problems
+    - Want to check response times
     
-    Useful for troubleshooting connection issues.
+    🔍 DIAGNOSTICS:
+    - API key validity and authentication
+    - Network connectivity to Tavily services
+    - Service availability and response times
+    - Specific error diagnosis with fix suggestions
+    
+    ❌ DON'T USE FOR:
+    - Regular search queries (use appropriate search tools)
+    - Getting information (this only tests the service)
+    
+    Returns: Health status, diagnostics, response time, fix suggestions
+    Credits: Minimal test (uses 1 basic search)
     """
     import time
     
@@ -404,15 +429,22 @@ def tavily_health_check() -> dict:
 @mcp.tool()
 def qna_search(query: str) -> str:
     """
-    Get a direct, concise answer to a question without full search results.
+    🔥 BEST FOR QUICK FACTS: Get direct, concise answers to simple questions.
     
-    Perfect for:
-    - Quick facts and simple questions
-    - When you need just the answer, not sources
-    - Fast responses without detailed analysis
+    ⚡ USE WHEN:
+    - User asks "What is...", "Who is...", "When did...", "How many..."
+    - Simple factual queries that need just the answer
+    - Want to save API credits with fast responses
+    - Need a quick definition, date, number, or basic fact
     
-    Returns a string answer directly instead of full search results.
-    Uses less API credits and provides faster responses.
+    ❌ DON'T USE FOR:
+    - Complex research or analysis
+    - Multiple sources needed
+    - Recent news or events (use detailed_news_search instead)
+    - When sources and citations are important
+    
+    Returns: Direct string answer (not JSON with sources)
+    Credits: <1 (most economical)
     """
     try:
         answer = tavily_client.qna_search(query=query)
@@ -441,15 +473,28 @@ def get_search_context(
     search_depth: Literal["basic", "advanced"] = "basic"
 ) -> str:
     """
-    Generate context string optimized for RAG (Retrieval-Augmented Generation) applications.
+    🧠 BEST FOR AI CONTEXT: Generate clean text context for LLM consumption.
     
-    Returns clean, formatted text perfect for feeding into LLMs or AI applications.
-    Automatically optimizes content for:
-    - Context windows
-    - Token limits  
+    ⚡ USE WHEN:
+    - Building context for another AI task or analysis
+    - Need clean text input for RAG applications
+    - User asks "research this for me to analyze" or "get context about..."
+    - Preparing information for further processing
+    - Want structured text without complex JSON
+    
+    🎯 OPTIMIZED FOR:
+    - Token-limited environments (respects max_tokens)
+    - Clean text format without metadata
+    - LLM-friendly structure and formatting
     - Relevant information extraction
     
-    This is ideal for building AI applications that need web context.
+    ❌ DON'T USE FOR:
+    - Direct user answers (use qna_search or smart_search)
+    - When user wants sources and citations
+    - Visual content needs (use smart_search or tavily_search)
+    
+    Returns: Clean text string (not JSON)
+    Purpose: Context for AI processing, not end-user consumption
     """
     try:
         # Note: max_tokens parameter might not be available in all Tavily versions
@@ -495,18 +540,29 @@ def detailed_news_search(
     include_international_sources: bool = True,
 ) -> dict:
     """
-    Specialized tool for getting detailed, comprehensive news coverage.
+    📰 BEST FOR CURRENT EVENTS: Specialized news search with rich analysis.
     
-    This tool automatically uses optimal parameters for rich content:
-    - Advanced search depth for thorough analysis
-    - Full article content extraction
-    - Comprehensive AI-generated summaries
-    - Multiple sources for complete coverage
+    ⚡ USE WHEN:
+    - User asks about recent news, current events, breaking stories
+    - Political developments, market updates, world events
+    - Queries like "latest news on...", "recent developments in...", "what happened with..."
+    - Need comprehensive news coverage with multiple sources
+    - Want full article content and AI analysis
     
-    Perfect for when you want detailed analysis rather than just headlines.
+    🎯 OPTIMIZED FOR:
+    - News topic with enhanced content extraction
+    - International source coverage (BBC, Reuters, etc.)
+    - AI-generated summaries and analysis
+    - Visual content (images, favicons)
+    - Recent timeframe (past week by default)
     
-    TIP: For country-specific news, try both with and without country filter.
-    International sources often have better coverage of specific countries.
+    ❌ DON'T USE FOR:
+    - Historical events (use tavily_search or smart_search)
+    - Non-news topics (use appropriate tool)
+    - Quick facts (use qna_search)
+    
+    Returns: Rich news results with full content, sources, images
+    Credits: 2 (advanced search with auto-optimization)
     """
     # If looking for specific country news, try without country filter first
     # as international sources often have better coverage
@@ -535,16 +591,27 @@ def smart_search(
     include_raw_content: Union[bool, Literal["markdown","text"]] = "markdown"
 ) -> dict:
     """
-    Intelligent search that automatically optimizes all parameters based on query intent.
+    🎯 BEST FOR COMPREHENSIVE RESEARCH: AI-optimized search for complex topics.
     
-    🤖 FEATURES:
-    - Uses Tavily's AI to automatically determine optimal search_depth, topic, time_range
-    - Smart parameter selection based on query content and context
-    - Enhanced content extraction with images and metadata
-    - Perfect for when you want the best results without manual parameter tuning
+    ⚡ USE WHEN:
+    - User wants thorough research on complex topics
+    - Query involves analysis, comparison, or deep understanding
+    - Need high-quality results with rich content
+    - Want AI to automatically optimize search parameters
+    - Research questions like "analyze...", "compare...", "research..."
     
-    ⚠️ NOTE: May use advanced search (2 credits) if Tavily's AI determines it will improve results.
-    Explicitly set search_depth="basic" in regular tavily_search to avoid extra cost.
+    🤖 AUTO-OPTIMIZATION:
+    - Tavily's AI determines optimal topic, search depth, time range
+    - Enhanced content with images, descriptions, and metadata
+    - Advanced AI summaries and comprehensive results
+    
+    ❌ DON'T USE FOR:
+    - Simple facts (use qna_search)
+    - Breaking news (use detailed_news_search)
+    - Quick lookups (use tavily_search basic)
+    
+    Returns: Rich JSON with sources, images, AI summaries
+    Credits: 1-2 (may auto-upgrade to advanced)
     """
     return tavily_search(
         query=query,
@@ -568,12 +635,31 @@ def tavily_extract(
     include_favicon: bool = False,
 ) -> dict:
     """
-    Extract content from specific URLs using Tavily.
+    📄 CONTENT EXTRACTION: Get full content from specific URLs.
     
-    IMPORTANT: This tool requires actual URLs (starting with http:// or https://).
-    Do NOT pass text summaries or search results as URLs.
+    ⚡ USE WHEN:
+    - User provides specific URLs to analyze
+    - Need full article content from known links
+    - Want to extract text from multiple web pages
+    - Follow-up to search results to get complete content
     
-    Use tavily_search first to get URLs, then use this tool to extract content from those URLs.
+    🎯 WORKFLOW:
+    1. First: Use smart_search or tavily_search to find relevant URLs
+    2. Then: Use this tool to extract full content from those URLs
+    
+    📝 FEATURES:
+    - Supports up to 20 URLs in batch
+    - Multiple format options (markdown/text)
+    - Image extraction capabilities
+    - Handles failed extractions gracefully
+    
+    ❌ DON'T USE FOR:
+    - General web searches (use search tools)
+    - When you don't have specific URLs
+    - Text summaries or search queries (URLs only!)
+    
+    Returns: Extracted content, images, failed results with explanations
+    Credits: Based on number of URLs processed
     """
     
     # Validate that urls parameter contains actual URLs
@@ -598,12 +684,12 @@ def tavily_extract(
     try:
         result = tavily_client.extract(
             urls=valid_urls,
-            include_images=include_images,
-            extract_depth=extract_depth,
-            format=format,
+        include_images=include_images,
+        extract_depth=extract_depth,
+        format=format,
             timeout=timeout or 60,
-            include_favicon=include_favicon,
-        )
+        include_favicon=include_favicon,
+    )
         
         # Check if extraction was successful
         if result.get("results") or result.get("failed_results"):
