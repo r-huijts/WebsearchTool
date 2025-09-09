@@ -11,19 +11,34 @@ services:
       - MCP_PORT=8000
     restart: unless-stopped
     networks: [mcpnet]
+    # no external ports — internal only
 
-  # Recommended bridge to OpenWebUI: MCP -> OpenAPI via mcpo
   mcpo:
     image: ghcr.io/open-webui/mcpo:latest
     container_name: mcpo
     depends_on: [mcp-tavily]
-    # Expose mcpo on 18001 and tell it our MCP server is streamable-http at http://mcp-tavily:8000/mcp
+    # Connect mcpo to our MCP server over Streamable HTTP
     command: >
       mcpo --host 0.0.0.0 --port 8001
            --server-type "streamablehttp" --
            http://mcp-tavily:8000/mcp
+    restart: unless-stopped
+    networks: [mcpnet]
+    # internal only
+
+  nginx-auth:
+    image: nginx:alpine
+    container_name: nginx-auth
+    depends_on: [mcpo]
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "18000:8001"
+      - "18000:18000"      
+    command: >
+      /bin/sh -c "envsubst '$$AUTH_TOKEN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+      && exec nginx -g 'daemon off;'"
     restart: unless-stopped
     networks: [mcpnet]
 
