@@ -29,5 +29,23 @@ OpenWebUI → Port 18000 → MCPO (port 8001) → MCP-Tavily (port 8000/mcp)
 - `MCP_HOST`: Server host (default: 0.0.0.0)
 - `MCP_PORT`: Server port (default: 8000)
 
+## Enhanced Tool Arsenal (Phase 1 & 2 Complete)
+- **Core Search**: `tavily_search`, `smart_search`, `qna_search`, `detailed_news_search`
+- **Context & Utility**: `get_search_context`, `get_current_date`, `tavily_health_check`  
+- **Content Extraction**: `tavily_extract`, `tavily_crawl`, `tavily_map`
+
+## Robustness Features
+- ✅ **Parameter validation** with `TavilyValidationError`
+- ✅ **3-tier fallback system** for graceful degradation
+- ✅ **Smart retry logic** with exponential backoff
+- ✅ **Dynamic timeout calculation** based on complexity
+- ✅ **Health monitoring** and API diagnostics
+- ✅ **Credit optimization** and quota management
+
 ## Deployment
 Deploy through Portainer using the docker-compose.yml configuration. The stack exposes port 18000 for OpenWebUI connections.
+
+## Architecture Status
+- **Phase 1**: ✅ Critical missing features implemented
+- **Phase 2**: ✅ Robustness & error handling complete
+- **Phase 3**: 🚀 Ready for performance & specialization

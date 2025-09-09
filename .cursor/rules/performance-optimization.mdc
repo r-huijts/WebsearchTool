@@ -1,0 +1,93 @@
+---
+globs: server.py
+---
+
+# Performance Optimization Guidelines
+
+## Timeout Management
+
+### Dynamic Timeout Calculation
+```python
+# Use calculate_optimal_timeout() for all searches
+timeout = calculate_optimal_timeout(search_depth, include_raw_content, max_results, auto_parameters)
+```
+
+### Timeout Guidelines
+- **Basic search**: 60s base + complexity factors
+- **Advanced search**: +30s for deeper analysis  
+- **Auto parameters**: +20s for AI optimization
+- **Raw content**: +20s for content extraction
+- **High result count**: +15-25s for processing
+- **Maximum cap**: 180s (3 minutes)
+
+## Credit Optimization
+
+### Cost-Aware Search Selection
+- **1 Credit**: `search_depth="basic"`, no auto_parameters
+- **2 Credits**: `search_depth="advanced"` OR auto_parameters=True
+- **QNA Search**: Lower cost alternative for simple questions
+
+### Fallback Strategy Benefits
+- Automatic degradation from 2-credit to 1-credit searches
+- Maintains functionality while reducing costs
+- Progressive parameter reduction for optimal cost/quality balance
+
+## Memory & Resource Management
+
+### Stateless Design
+- Use `stateless_http=True` in FastMCP for better scalability
+- No server-side state retention between requests
+- Container-friendly architecture for horizontal scaling
+
+### Response Size Management
+- Use `max_results` appropriately (5-10 for most cases, 15-20 for research)
+- Enable `include_raw_content` only when needed (increases response size)
+- Consider `chunks_per_source` impact on content volume
+
+## Error Recovery Performance
+
+### Smart Retry Timing
+- **Timeout errors**: Exponential backoff (2^attempt seconds)
+- **Transient errors**: 1-second pause between retries
+- **Maximum retries**: 2 additional attempts (3 total)
+
+### Fallback Performance
+- **Tier 1**: Full functionality (original parameters)
+- **Tier 2**: Reduced complexity (faster, still comprehensive)
+- **Tier 3**: Minimal search (emergency speed mode)
+
+## Network Optimization
+
+### Connection Management
+- Single TavilyClient instance (reuse connections)
+- Appropriate timeout values prevent hanging requests
+- Health check tool for connectivity monitoring
+
+### Batch Operations
+- Extract tool supports up to 20 URLs simultaneously
+- Batch processing more efficient than individual requests
+- Consider API rate limits for batch operations
+
+## Container Performance
+
+### Docker Optimization
+- Minimal base image (python:3.11-slim)
+- Layered builds for better caching
+- Environment variable configuration for flexibility
+
+### Resource Allocation
+- Appropriate timeout caps prevent resource exhaustion
+- Stateless design enables easy scaling
+- Health checks for container orchestration
+
+## Monitoring & Diagnostics
+
+### Performance Metrics
+- `tavily_health_check()` measures response times
+- Error rate monitoring through structured responses
+- Fallback usage tracking via `_fallback_used` indicators
+
+### Optimization Indicators
+- Response time degradation suggests timeout adjustment
+- High fallback usage indicates parameter optimization needed
+- Quota errors suggest credit management improvements

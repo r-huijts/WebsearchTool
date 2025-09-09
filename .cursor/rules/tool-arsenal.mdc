@@ -1,0 +1,129 @@
+---
+description: Complete reference of available MCP tools and their optimal usage patterns
+---
+
+# MCP Tavily Tool Arsenal
+
+## Core Search Tools
+
+### `tavily_search` - Enhanced Universal Search
+**When to use**: Comprehensive searches with full parameter control
+**Features**: 
+- 6 topic types (general, news, finance, health, scientific, travel)
+- auto_parameters for AI optimization
+- Visual content with image descriptions
+- Robust fallback strategies
+- Parameter validation
+
+### `smart_search` - AI-Optimized Search  
+**When to use**: Best results without manual parameter tuning
+**Features**:
+- auto_parameters=True (may use 2 credits)
+- Enhanced visual content extraction
+- Advanced answers and raw content
+- Perfect for complex research
+
+### `qna_search` - Quick Direct Answers
+**When to use**: Simple questions, fast responses, credit conservation
+**Features**:
+- Returns string answer directly
+- Lower credit usage
+- No complex JSON structure
+- Perfect for facts and simple queries
+
+### `detailed_news_search` - News-Specific Research
+**When to use**: Current events, political developments, news analysis
+**Features**:
+- Optimized for news topic
+- International source handling
+- Auto-parameters for smart optimization
+- Visual content and favicons
+
+## Context & Utility Tools
+
+### `get_search_context` - RAG-Optimized Context
+**When to use**: Building AI applications, feeding context to LLMs
+**Features**:
+- Clean text format for AI consumption
+- Token limit awareness
+- Smart fallback to regular search
+- Perfect for RAG applications
+
+### `get_current_date` - Temporal Awareness
+**When to use**: When LLM needs date context for temporal queries
+**Features**:
+- Current date in multiple formats
+- Day of week, formatted dates
+- Essential for "recent", "current", "today" queries
+
+### `tavily_health_check` - API Diagnostics
+**When to use**: Troubleshooting connection issues, monitoring API status
+**Features**:
+- API connectivity verification
+- Response time measurement
+- Error diagnosis with fix suggestions
+- Status monitoring capabilities
+
+## Content Extraction Tools
+
+### `tavily_extract` - URL Content Extraction
+**When to use**: Getting full content from specific URLs
+**Features**:
+- URL validation and error handling
+- Batch processing support (up to 20 URLs)
+- Enhanced error messages for failed extractions
+- Fallback suggestions
+
+### `tavily_crawl` - Website Structure Analysis
+**When to use**: Mapping website structure, finding related pages
+**Features**: 
+- Depth and breadth control
+- Instruction-based filtering
+- Content discovery and mapping
+
+### `tavily_map` - Site Architecture Discovery
+**When to use**: Understanding website structure and navigation
+**Features**:
+- Site structure analysis
+- Page relationship mapping
+- Content categorization
+
+## Tool Selection Strategy
+
+### For Quick Facts
+1. `qna_search` - Fastest, lowest cost
+2. `tavily_search` (basic) - If QNA fails
+
+### For Research & Analysis  
+1. `smart_search` - Best automated results
+2. `detailed_news_search` - For news-specific research
+3. `tavily_search` (advanced) - For manual optimization
+
+### For AI Applications
+1. `get_search_context` - RAG-optimized context
+2. `get_current_date` - Temporal context
+3. `smart_search` - Rich content for processing
+
+### For Troubleshooting
+1. `tavily_health_check` - Diagnose issues
+2. `tavily_search` (basic) - Test basic functionality
+
+## Parameter Optimization Guidelines
+
+### Credit Conservation
+- Use `search_depth="basic"` (1 credit vs 2)
+- Disable `auto_parameters` to prevent automatic advanced search
+- Use `qna_search` for simple questions
+- Limit `max_results` to 5-10
+
+### Maximum Quality
+- Enable `auto_parameters=True`
+- Use `search_depth="advanced"`
+- Set `include_answer="advanced"`
+- Enable `include_raw_content="markdown"`
+- Include visual content options
+
+### Balanced Approach
+- Let `smart_search` or `detailed_news_search` handle optimization
+- Use fallback strategies for reliability
+- Monitor API usage and adjust accordingly

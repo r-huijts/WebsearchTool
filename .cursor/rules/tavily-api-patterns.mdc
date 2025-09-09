@@ -5,7 +5,7 @@ globs: *.py
 # Tavily API Implementation Patterns
 
 ## Tool Function Structure
-All Tavily MCP tools should follow this pattern:
+All Tavily MCP tools should follow this robust pattern:
 
 ```python
 @mcp.tool()
@@ -21,32 +21,42 @@ def tool_name(
     Usage guidelines and parameter explanations.
     """.format(today=date.today().isoformat())
     
+    # 1. Parameter validation first
     try:
-        # Parameter validation and preprocessing
-        # API call with proper error handling
-        return result
-    except Exception as e:
+        validate_search_params(param1, param2, param3, param4, param5)
+    except TavilyValidationError as e:
         return {
-            "error": f"Detailed error: {str(e)}",
-            "error_type": type(e).__name__,
-            "suggestion": "Helpful suggestion for fixing the issue"
+            "error": f"Parameter validation error: {str(e)}",
+            "error_type": "ValidationError",
+            "fix_suggestion": "Check the parameter requirements in the error message above"
         }
+    
+    # 2. Use robust search with fallback strategies
+    return robust_tavily_search_with_fallback(search_params)
 ```
 
 ## Required Error Handling
-- Always wrap Tavily API calls in try/catch
-- Return structured error responses with helpful suggestions
-- Include parameter validation for user-facing tools
-- Provide fallback strategies when possible
+- Use `robust_tavily_search_with_fallback()` for all search operations
+- Implement parameter validation with `validate_search_params()`
+- Use custom `TavilyValidationError` for validation failures
+- Provide 3-tier fallback strategy: original → reduced complexity → minimal
+- Include exponential backoff retry for timeout errors
+- Return structured error responses with specific error type classification
 
 ## Parameter Guidelines
 - Use proper type hints with Literal types for enums
-- Include comprehensive docstrings with date context
-- Validate parameter combinations (e.g., chunks_per_source only with advanced search)
-- Provide sensible defaults based on Tavily documentation
+- Include comprehensive docstrings with date context and emoji indicators
+- Validate ALL parameter combinations using `validate_search_params()`
+- Use `calculate_optimal_timeout()` for dynamic timeout calculation
+- Support auto_parameters=True for AI-optimized searches
+- Include all 6 topic types: general, news, finance, health, scientific, travel
+- Enable visual content with include_image_descriptions and include_favicon
 
 ## Response Processing
 - Clean and structure API responses before returning
-- Add helpful metadata (like extraction_note for failed URLs)
-- Include debugging information in error responses
-- Format dates and times consistently
+- Add helpful metadata (like extraction_note for failed URLs, _fallback_used indicators)
+- Include debugging information and troubleshooting steps in error responses
+- Format dates and times consistently using date.today().isoformat()
+- Detect and handle quota/credit limit errors specifically
+- Provide actionable suggestions for different error types
+- Include health check capabilities for API diagnostics

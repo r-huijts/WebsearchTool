@@ -1,0 +1,98 @@
+---
+globs: *.py
+---
+
+# Robustness & Error Handling Patterns
+
+## Core Robustness Architecture
+
+### Parameter Validation Layer
+```python
+# Always validate parameters before API calls
+try:
+    validate_search_params(search_depth, chunks_per_source, max_results, topic, country)
+except TavilyValidationError as e:
+    return structured_validation_error(e)
+```
+
+### Robust Execution Layer
+```python
+# Use robust search with automatic fallback strategies
+return robust_tavily_search_with_fallback(search_params, max_retries=2)
+```
+
+## Fallback Strategy Implementation
+
+### 3-Tier Fallback System
+1. **Tier 1 (Original)**: Full functionality with all requested parameters
+2. **Tier 2 (Reduced)**: `create_fallback_search_params()` - basic search, fewer results
+3. **Tier 3 (Minimal)**: Emergency fallback with minimal parameters for basic results
+
+### Fallback Parameter Reduction
+- search_depth: advanced → basic
+- auto_parameters: true → false  
+- max_results: reduce to ≤5
+- chunks_per_source: remove (advanced-only)
+- include_raw_content: true → false
+- include_answer: advanced → basic
+
+## Error Classification & Handling
+
+### Quota/Credit Errors
+```python
+if any(keyword in error_str for keyword in ["credit", "quota", "limit", "billing"]):
+    return quota_exceeded_response()
+```
+
+### Timeout Errors
+```python
+if any(keyword in error_str for keyword in ["timeout", "time out"]):
+    # Exponential backoff: 2^attempt seconds
+    time.sleep(2 ** attempt)
+```
+
+### Network/Connectivity Errors
+```python
+if any(keyword in error_str for keyword in ["network", "connection"]):
+    return network_issue_response()
+```
+
+## Smart Timeout Calculation
+```python
+def calculate_optimal_timeout(search_depth, include_raw_content, max_results, auto_parameters):
+    base = 60
+    if search_depth == "advanced": base += 30
+    if auto_parameters: base += 20
+    if include_raw_content: base += 20
+    if max_results > 10: base += 15
+    return min(base, 180)  # Cap at 3 minutes
+```
+
+## Health Check Implementation
+- Minimal test search to verify API connectivity
+- Response time measurement
+- Error type diagnosis with specific fix suggestions
+- API key validation, network connectivity, quota status
+
+## Error Response Structure
+```python
+{
+    "error": "Descriptive error message",
+    "error_type": "ErrorClassName", 
+    "suggestion": "Actionable fix suggestion",
+    "troubleshooting": {
+        "check_api_key": "...",
+        "check_network": "...",
+        "reduce_complexity": "..."
+    },
+    "_fallback_used": "reduced_complexity|minimal_search",
+    "_original_error": "original error for debugging"
+}
+```
+
+## Retry Logic Patterns
+- Maximum 3 attempts (original + 2 retries)
+- Exponential backoff for timeout errors
+- Immediate retry for transient errors
+- Progressive parameter reduction across attempts
+- Early exit for quota/authentication errors
