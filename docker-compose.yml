@@ -16,6 +16,7 @@ services:
     image: ghcr.io/open-webui/mcpo:latest
     container_name: mcpo
     depends_on: [mcp-tavily]
+    # Connect mcpo to our MCP (streamable-http)
     command: >
       mcpo --host 0.0.0.0 --port 8001
            --server-type "streamablehttp" --
@@ -28,21 +29,36 @@ services:
     container_name: nginx-auth
     depends_on: [mcpo]
     environment:
-      - AUTH_TOKEN=${AUTH_TOKEN}  # set in Portainer or .env (don't commit)
-    volumes:
-      - ./nginx/default.conf.template:/tmp/default.conf.template:ro
+      - AUTH_TOKEN=${AUTH_TOKEN}   # <-- set in Portainer (not committed)
     ports:
       - "18000:18000"
     command: >
       /bin/sh -c '
-        set -e
-        [ -f /tmp/default.conf.template ] || { echo "Template missing"; exit 1; }
+        set -eu
+        # Write template inline (no bind-mounts)
+        cat > /tmp/default.conf.template << "EOF"
+server {
+    listen 0.0.0.0:18000;
+
+    resolver 127.0.0.11 ipv6=off valid=10s;
+
+    location / {
+        if ($http_authorization != "Bearer ${AUTH_TOKEN}") { return 401; }
+        proxy_pass http://mcpo:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+EOF
         mkdir -p /etc/nginx/conf.d
+        # Substitute only AUTH_TOKEN (leave the rest untouched)
         envsubst "$$AUTH_TOKEN" < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf
         exec nginx -g "daemon off;"
       '
-    networks: [mcpnet]
     restart: unless-stopped
+    networks: [mcpnet]
 
 networks:
   mcpnet:
