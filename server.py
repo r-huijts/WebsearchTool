@@ -72,6 +72,12 @@ def tavily_search(
     
     IMPORTANT DATE CONTEXT: Today's date is {today}
     
+    For DETAILED content and analysis:
+    - Use include_answer="advanced" for comprehensive summaries
+    - Use include_raw_content="markdown" for full article content
+    - Use search_depth="advanced" for deeper analysis
+    - Use max_results=10 for more sources
+    
     For recent/current events:
     - Use 'days' parameter (e.g., days=1 for today, days=7 for past week)
     - Use 'time_range' parameter ("day", "week", "month", "year")
@@ -124,6 +130,36 @@ def tavily_search(
             "error_type": type(e).__name__,
             "search_params": search_params
         }
+
+@mcp.tool()
+def detailed_news_search(
+    query: str,
+    days: int = 7,
+    max_results: int = 10,
+    country: Optional[str] = None,
+) -> dict:
+    """
+    Specialized tool for getting detailed, comprehensive news coverage.
+    
+    This tool automatically uses optimal parameters for rich content:
+    - Advanced search depth for thorough analysis
+    - Full article content extraction
+    - Comprehensive AI-generated summaries
+    - Multiple sources for complete coverage
+    
+    Perfect for when you want detailed analysis rather than just headlines.
+    """
+    return tavily_search(
+        query=query,
+        search_depth="advanced",
+        topic="news", 
+        days=days,
+        max_results=max_results,
+        include_answer="advanced",
+        include_raw_content="markdown",
+        country=country,
+        timeout=120  # Longer timeout for advanced searches
+    )
 
 @mcp.tool()
 def tavily_extract(
