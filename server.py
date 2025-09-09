@@ -51,6 +51,12 @@ def tavily_search(
     Wraps Tavily Search.
     See Tavily's docs for semantics of each parameter.
     """
+    # Handle date parameters - if start_date and end_date are the same, use days=1 instead
+    if start_date and end_date and start_date == end_date:
+        start_date = None
+        end_date = None
+        days = 1
+    
     return tavily_client.search(
         query=query,
         search_depth=search_depth,
