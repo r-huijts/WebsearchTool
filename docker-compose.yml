@@ -35,9 +35,21 @@ services:
       - ./nginx.conf:/etc/nginx/templates/default.conf.template
     command: |
       /bin/sh -c '
-        # This command first removes the default Nginx config, then lets the
-        # standard entrypoint script handle the .template file substitution automatically.
-        rm -f /etc/nginx/conf.d/default.conf && /docker-entrypoint.sh nginx -g "daemon off;"
+        # Explicitly process the template using envsubst
+        export AUTH_TOKEN && envsubst ''$$AUTH_TOKEN'' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
+        
+        # Add a small delay to ensure the file system is consistent
+        sleep 1 &&
+        
+        # Validate the generated config file
+        echo "--- Generated Nginx Config ---" &&
+        cat /etc/nginx/conf.d/default.conf &&
+        echo "------------------------------" &&
+        nginx -t &&
+        
+        # Start Nginx
+        echo "Starting Nginx..." &&
+        nginx -g "daemon off;"
       '
     ports:
       - "18000:18000"
