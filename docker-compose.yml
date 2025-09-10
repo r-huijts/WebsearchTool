@@ -33,8 +33,6 @@ services:
       - AUTH_TOKEN=${AUTH_TOKEN}
     volumes:
       - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
-    command: >
-      sh -c "envsubst '$$AUTH_TOKEN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
     ports:
       - "18000:18000"
     restart: unless-stopped
