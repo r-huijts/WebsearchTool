@@ -1,42 +1,17 @@
 version: "3.8"
 
 services:
-  mcp-tavily:
-    build:
-      context: .
-    image: mcp-tavily:latest
-    environment:
-      TAVILY_API_KEY: ${TAVILY_API_KEY}
-      MCP_HOST: 0.0.0.0
-      MCP_PORT: "8000"
-    restart: unless-stopped
-    networks:
-      - mcpnet
-
   mcpo:
     image: ghcr.io/open-webui/mcpo:latest
-    depends_on:
-      - mcp-tavily
+    environment:
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
     command: >
       mcpo --host 0.0.0.0 --port 8001
            --server-type streamablehttp --
-           http://mcp-tavily:8000/mcp
-    restart: unless-stopped
-    networks:
-      - mcpnet
-
-  gateway:
-    image: nginx:alpine
-    depends_on:
-      - mcpo
-    volumes:
-      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
+           https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}
     ports:
-      - "18000:18000"
+      - "18000:8001"
     restart: unless-stopped
-    networks:
-      - mcpnet
 
-networks:
-  mcpnet:
-    driver: bridge
+# Note: Removed mcp-tavily service as we're now using Tavily's remote MCP server
+# This dramatically simplifies our architecture and reduces maintenance overhead
