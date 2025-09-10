@@ -29,8 +29,6 @@ services:
     image: nginx:alpine
     depends_on:
       - mcpo
-    environment:
-      - AUTH_TOKEN=${AUTH_TOKEN}
     volumes:
       - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
     ports:
